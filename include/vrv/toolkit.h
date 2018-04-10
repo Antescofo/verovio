@@ -126,6 +126,11 @@ public:
     std::string GetHumdrum();
 
     /**
+     * Returns JSON time map of notes and their timings
+     */
+    std::string GetTimemap(void);
+
+    /**
      * Returns array of IDs of elements being currently played.
      */
     std::string GetElementsAtTime(int millisec);

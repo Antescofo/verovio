@@ -10,6 +10,7 @@
 //----------------------------------------------------------------------------
 
 #include <assert.h>
+#include <rest.h>
 
 //----------------------------------------------------------------------------
 
@@ -22,6 +23,7 @@
 #include "layer.h"
 #include "measure.h"
 #include "note.h"
+#include "mrest.h"
 #include "page.h"
 #include "slur.h"
 #include "style.h"
@@ -880,6 +882,56 @@ void Toolkit::GetHumdrum(ostream &output)
     output << GetHumdrumBuffer();
 }
 
+    /**
+     * Remark: current implementation ignores grace notes and rests
+     */
+    std::string Toolkit::GetTimemap(void) {
+        Doc &doc = m_doc;
+
+        // 1. create array with all notes
+        AttComparisonAny matchType({ NOTE, REST, MREST});
+        //AttComparison matchType(NOTE);
+        ArrayOfObjects elements;
+        doc.FindAllChildByAttComparison(&elements, &matchType);
+
+        // 2. map array to JSON
+        jsonxx::Object o;
+        jsonxx::Object a;
+        for (ArrayOfObjects::iterator iter = elements.begin(); iter != elements.end(); iter++) {
+            assert((*iter)->Is(NOTE) || (*iter)->Is(REST) || (*iter)->Is(MREST));
+            if ((*iter)->Is(NOTE)) {
+                Note * const note = dynamic_cast<Note *>(*iter);
+                assert(note);
+                // ignore grace notes
+                //
+                    //continue;
+                // retrieve duration
+                float const timeOfElement = note->m_playingOnset * 1000.0 / 120.0 / 500. / 2.;
+                // write id and duration
+                a << note->GetUuid() << timeOfElement;
+            }
+            else if ((*iter)->Is(REST)) {
+                Rest * const rest = dynamic_cast<Rest *>(*iter);
+                assert(rest);
+                // retrieve duration
+                float const timeOfElement = rest->m_playingOnset * 1000.0 / 120.0 / 500. / 2.;
+                // write id and duration
+                a << rest->GetUuid() << timeOfElement;
+            }
+            else if ((*iter)->Is(MREST)) {
+                MRest * rest = dynamic_cast<MRest *>(*iter);
+                assert(rest);
+                // retrieve duration
+                float const timeOfElement = rest->m_playingOnset * 1000.0 / 120.0 / 500. / 2.;
+                // write id and duration
+                a << rest->GetUuid() << timeOfElement;
+            }
+        }
+        o << "notes" << a;
+
+        return o.json();
+    }
+
 std::string Toolkit::RenderToMidi()
 {
     MidiFile outputfile;
@@ -897,7 +949,7 @@ std::string Toolkit::RenderToMidi()
 
 std::string Toolkit::GetElementsAtTime(int millisec)
 {
-#if defined(USE_EMSCRIPTEN) || defined(PYTHON_BINDING)
+    // #if defined(USE_EMSCRIPTEN) || defined(PYTHON_BINDING)
     jsonxx::Object o;
     jsonxx::Array a;
 
@@ -924,10 +976,10 @@ std::string Toolkit::GetElementsAtTime(int millisec)
         o << "page" << pageNo;
     }
     return o.json();
-#else
-    // The non-js version of the app should not use this function.
-    return "";
-#endif
+    // #else
+    //     // The non-js version of the app should not use this function.
+    //     return "";
+    // #endif
 }
 
 bool Toolkit::RenderToMidiFile(const std::string &filename)

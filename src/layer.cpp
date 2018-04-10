@@ -430,6 +430,8 @@ int Layer::CalcMaxMeasureDuration(FunctorParams *functorParams)
     CalcMaxMeasureDurationParams *params = dynamic_cast<CalcMaxMeasureDurationParams *>(functorParams);
     assert(params);
 
+    params->m_currentMeterSig = GetCurrentMeterSig();
+
     // reset it
     params->m_currentValue = 0.0;
 

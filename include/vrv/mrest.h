@@ -65,6 +65,8 @@ private:
 public:
     //
 private:
+public:
+    double m_playingOnset;
 };
 
 } // namespace vrv

@@ -308,6 +308,9 @@ private:
      * This also stores the negative values for identifying cross-staff
      */
     int m_alignmentLayerN;
+public:
+    double m_playingOnset;
+    double m_playingOffset;
 };
 
 } // namespace vrv

@@ -55,6 +55,8 @@ void Rest::Reset()
     ResetColor();
     ResetRelativesize();
     ResetRestVisMensural();
+    m_playingOnset = 0.;
+    m_playingOffset = 0.;
 }
 
 void Rest::AddChild(Object *child)

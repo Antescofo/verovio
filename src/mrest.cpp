@@ -34,6 +34,7 @@ void MRest::Reset()
     ResetVisibility();
     ResetFermatapresent();
     ResetRelativesize();
+    m_playingOnset = 0.;
 }
 
 //----------------------------------------------------------------------------
