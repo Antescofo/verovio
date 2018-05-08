@@ -1180,11 +1180,26 @@ int LayerElement::GenerateMIDI(FunctorParams *functorParams)
     GenerateMIDIParams *params = dynamic_cast<GenerateMIDIParams *>(functorParams);
     assert(params);
 
+    // MRest objects do not have INTERFACE_DURATION
+    if (this->Is(MREST)) {
+        MRest * const rest = dynamic_cast<MRest *>(this);
+        assert(rest);
+
+        rest->m_playingOnset = params->m_totalTime + params->m_currentMeasureTime;
+    }
     // Here we need to check if the LayerElement has a duration, otherwise we can continue
-    if (!this->HasInterface(INTERFACE_DURATION)) return FUNCTOR_CONTINUE;
+    else if (!this->HasInterface(INTERFACE_DURATION)) return FUNCTOR_CONTINUE;
 
     // Now deal with the different elements
     if (this->Is(REST)) {
+        Rest *rest = dynamic_cast<Rest *>(this);
+        assert(rest);
+
+        double const dur = GetAlignmentDuration() * params->m_currentBpm / (DUR_MAX / DURATION_4);
+
+        rest->m_playingOnset = params->m_totalTime + params->m_currentMeasureTime;
+        rest->m_playingOffset = params->m_totalTime + params->m_currentMeasureTime + dur;
+
         // increase the currentTime accordingly
         params->m_currentMeasureTime += GetAlignmentDuration() * params->m_currentBpm / (DUR_MAX / DURATION_4);
     }
@@ -1193,7 +1208,10 @@ int LayerElement::GenerateMIDI(FunctorParams *functorParams)
         assert(note);
 
         // For now just ignore grace notes
-        if (note->HasGrace()) return FUNCTOR_CONTINUE;
+        if (note->HasGrace()) {
+            note->m_playingOnset = note->m_playingOffset = params->m_totalTime + params->m_currentMeasureTime;
+            return FUNCTOR_CONTINUE;
+        }
 
         Chord *chord = note->IsChordTone();
 
@@ -1304,8 +1322,9 @@ int LayerElement::CalcMaxMeasureDuration(FunctorParams *functorParams)
     CalcMaxMeasureDurationParams *params = dynamic_cast<CalcMaxMeasureDurationParams *>(functorParams);
     assert(params);
 
-    // Here we need to check if the LayerElement as a duration, otherwise we can continue
-    if (!this->HasInterface(INTERFACE_DURATION)) return FUNCTOR_CONTINUE;
+
+    // MRest objects do not have INTERFACE_DURATION
+    if (!this->HasInterface(INTERFACE_DURATION) && (!this->Is(MREST))) return FUNCTOR_CONTINUE;
 
     if (this->Is(NOTE)) {
         Note *note = dynamic_cast<Note *>(this);
@@ -1319,7 +1338,9 @@ int LayerElement::CalcMaxMeasureDuration(FunctorParams *functorParams)
     }
 
     // increase the currentTime accordingly
-    params->m_currentValue += GetAlignmentDuration() * params->m_currentBpm / (DUR_MAX / DURATION_4);
+    double dur = GetAlignmentDuration(NULL, params->m_currentMeterSig) * params->m_currentBpm / (DUR_MAX / DURATION_4);
+    //TODO: will be wrong in case of multi-rest
+    params->m_currentValue += dur;
 
     // now if we have cummulated in the layer a longer duration for the current measure, replace it
     if (params->m_maxValues.back() < params->m_currentValue) params->m_maxValues.back() = params->m_currentValue;

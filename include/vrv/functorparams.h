@@ -523,10 +523,12 @@ public:
     {
         m_currentValue = 0.0;
         m_currentBpm = 120;
+        m_currentMeterSig = NULL;
     }
     std::vector<double> m_maxValues;
     double m_currentValue;
     int m_currentBpm;
+    MeterSig *m_currentMeterSig;
 };
 
 //----------------------------------------------------------------------------
