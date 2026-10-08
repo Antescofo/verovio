@@ -1903,12 +1903,15 @@ bool MusicXmlInput::ReadMusicXmlMeasure(
         measure->AddChild(mNum);
     }
 
+    pugi::xml_node attributes = node.child("attributes");
     for (int i = 0; i < nbStaves; ++i) {
         // the staff @n must take into account the staffOffset
         Staff *staff = new Staff();
         staff->SetN(i + 1 + staffOffset);
-        staff->SetVisible(
-            this->ConvertWordToBool(node.child("attributes").child("staff-details").attribute("print-object").value()));
+        std::string xpath = StringFormat("staff-details[@number='%d']", i + 1);
+        pugi::xpath_node staffDetails = attributes.select_node(xpath.c_str());
+        if (!staffDetails) staffDetails = attributes.select_node("staff-details[not(@number)]");
+        staff->SetVisible(this->ConvertWordToBool(staffDetails.node().attribute("print-object").value()));
         measure->AddChild(staff);
         // layers will be added in SelectLayer
     }
@@ -3017,11 +3020,16 @@ void MusicXmlInput::ReadMusicXmlNote(
 
     const std::string noteID = node.attribute("id").as_string();
     int duration = node.child("duration").text().as_int();
+    const std::vector<LayerElement *> &stack = m_elementStackMap.at(layer);
+    // A chord note after a rest at the start of a measure has no chord (or tabGrp) to join
+    if (isChord && stack.empty()) {
+        LogWarning("MusicXML import: Chord note without a chord starting point is ignored");
+        return;
+    }
     // In chords, make sure a note does not extend first note's duration.
     // See https://github.com/rism-digital/verovio/issues/4225
-    if (isChord && duration && m_elementStackMap.at(layer).back()->Is(CHORD)) {
-        Chord *chord = vrv_cast<Chord *>(m_elementStackMap.at(layer).back());
-        if (chord) duration = std::min(duration, chord->GetDurPpq());
+    if (isChord && duration && stack.back()->Is(CHORD)) {
+        duration = std::min(duration, vrv_cast<Chord *>(stack.back())->GetDurPpq());
     }
     const int noteStaffNum = node.child("staff").text().as_int();
     // Staff the note is actually on (cross-staff aware), for control events anchored to this note
@@ -3327,6 +3335,7 @@ void MusicXmlInput::ReadMusicXmlNote(
             }
             if (!chord) {
                 LogError("MusicXML import: Chord starting point has not been found");
+                delete note;
                 return;
             }
             // Mark a chord as cue=true if and only if all its child notes are cue.
